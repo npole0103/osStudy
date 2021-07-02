@@ -597,3 +597,391 @@ CPU의 실행단위는 프로세스가 아니고 쓰레드이다. 스케줄링 U
 4. 쓰레드간의 동기화 부하가 작다.
 
 ---
+
+**Memory Management Strategies**
+
+Memory Management for Multiprogramming
+
+Dram 상에 여러 가지 프로세스 올라가 있고, 여러 개의 프로세스가 올라가 있음.
+Protection : 다른 프로세스가 할당된 메모리를 침범하지 못하도록 막는 것
+
+다른 프로세스가 내 프로세스의 메모리를 침범해서 디버깅을 해야하는 상황이 발생할 수 있다. 또한 프로세스가 OS가 돌아가는 메모리를 침범하면 컴퓨터가 다운되는 현상이 발생할 수 있다.
+
+**Protection 방법**
+Base Register(현재 레지스터의 가장 낮은 번지) + Limit Register(프로세스 메모리의 크기를 저장) 2개를 설정해주면 다른 프로세스 메모리 침범하지 않음.
+
+---
+
+**Contiguous Memory Allocation**
+
+문제점 : Process 1이 이렇게 분할되어 Virtual 공간 상에 저장되어 있으면 17000이란 값을 넣었을 때 문제 없이 통과되어버리는데 실제론 Process2의 공간이라 메모리를 침범한 것이 되어버림.
+
+Solution프로세스 메모리를 할당할 때는 항상 연속적으로 DRAM상에 할당해야함.
+
+외부적 단편화(메모리 조각화)가 발생할 수 있음.
+
+공간이 있음에도 불구하고 들어갈 수가 없음.
+
+해결하는 방법
+1. Compation ; 가비지 콜렉션과 동일한 말임. 가비지 콜렉션 실행시 공간을 앞당기는데 카피 동작이 많이 일어나고 성능 저하에 영향을 미침. 그래서 이 방법은 사용할 수 없음
+2. Non-Contiguous Address : 그냥 빈 공간에 저장하자. 이 방법이 paging
+
+---
+
+**Paging**
+
+Paging : 페이징은 프로세스의 메모리 공간을 DRAM 상에 흩뿌려서 관리하겠다.
+
+Dram을 페이지 단위로 쪼갬, 파일 시스템의 block과 Dram의 Page은 서로 유사한 관계임
+
+프로세스 A도 page 크기로 나눔. 첫 번째 페이지부터 쭉 0번 1번 2번 순서대로 번호를 매김. DRAM에서 page 단위로 쪼갠 후 그 단위를 Frame이라고 부름.
+Contigous 하게 저장하지 않고 페이지 단위로 흩어져서 저장하게 됨.
+
+logical address를 반으로 짤라서 앞쪽은 page number(p) 뒤쪽은 page offset(d)라고 함.
+page number는 page table을 인덱스 하기 위해서 사용
+page offset은 page가 바이트 단위로 되어 있다면, 어드레스가 몇 번째에 존재하는지 나타내주는 것이 page offset이다.
+
+1. p 인덱스를 참조하여 f가 저장되어있음을 알고 f를 반환
+2. 앞쪽은 f 뒤쪽은 d를 붙여만듦.
+3. 해당하는 특정한 위치에 physical memory를 가리키게 됨.
+
+m은 V.A.S가 2^4이기 때문에 m = 4  
+n는 page 사이즈가 2^2이기 때문에 n = 2  
+page offset = q는 n과 같기 때문에 q = 2  
+page number = p는 m – n이기 때문에 p = 2  
+
+Virtual Address 0번에 해당하는 Pyhsical Address 구하려면  
+page number : 0 / pagesize == 0 / 2^n = 0  
+page offset : 0 % pagesize == 0 % 2^n = 0  
+구하는 법 >> page table 0번에 가서 매핑되는 frame 번호를 구함. 해당 5번 frame에 가서 offset이 0이기 때문에 0번째에 해당하는 값이 대응되는 physical Address 값임.
+
+Virtual Address 13번에 해당하는 Pyhsical Address 구하려면  
+page number : 13 / pagesize == 13 / 2^n = 3  
+page offset : 13 % pagesize == 13 % 2^n = 1  
+구하는 법 >> page table 3번에 가서 매핑되는 frame 번호를 구함. 해당 2번 frame에 가서 offset이 1이기 때문에 1번째에 해당하는 값이 대응되는 physical Address 값임.  
+
+그러나 이런 방법은 사람이 생각할 때 개념이고, 실제 연산 동작은 다음과 같음.
+13을 2진수로 나타내면 1 1 0 1임. 이것을 p bits, q bits 만큼 나누면 1 1 / 0 1로 나뉘게 되고 이 값이 3과 1임. Physical Address는 3에 해당되는 값 2를 다시 이진수로 나타내면  
+1 0임. 해당 Frame과 1 0과 offset 0 1을 붙여 만든 1 0 0 1이 되고 이 값은 9임.
+따라서 전체 physical bytes 단위 중 9번을 보면 됨.  
+
+---
+
+**Internal Fragmentation 내부적 단편화**
+
+한 페이지 크기가 4096일 때, 512만큼만 할당됐다고 가정함. 그럼 나머지 사용하지 않는 공간을 보고 internal fragmentation이라고 함.
+
+Pagesize가 증가할수록 내부적 단편화가 증가함. pagesize가 감소할수록 내부적 단편화가 감소함.
+
+내부적 단편화를 해결하기 위해, 페이지 사이즈를 줄이면 줄일수록 페이지 테이블 엔트리 개수가 증가하는 현상이 발생.
+
+---
+
+**Memory Protection**
+
+메모리에서 Shared lib + text(code) 영역은 절대 건들면 안됨 write불가, read만 가능
+
+**Valid-Invalid Bit**
+
+V.A.S의 일부분의 페이지는 DRAM에 매핑(저장)되어 있다. 그런데 일부분의 페이지는 DRAM상에 매핑되어있지 않을 수 있다.
+
+---
+
+**Shared Pages**
+
+시스템에 40개의 텍스트에디터 프로세스가 있고, 150kb코드공간와 50kb의 데이터 공간 사용하고 있다고 가정 그렇다면 전체 메모리 사용량은 40 *200kb = 8000kb
+메모리 상에 올라간 text code는 Read-only여야함.
+1. 보안상 문제
+2. 2.오작동 막기 위해서
+
+---
+
+**Segmentation**
+
+Segmentation : 페이지의 크기로 나누는 방식과 달리 text code, data, stack 단위로 메모리 크기를 나눈다.
+Symbol table : 함수이름, 전역변수 이름을 관리하는 테이블
+
+Segment : 프로그래머가 인지할 수 있는 논리적 엔티티, 프로세스을 구성하는 있는 요소의 특성 별로 나누어진 엔트리.
+세그먼트의 종류
+1. Text Code 2. Global Variables 3. Heap 4. Stacks 5. Standard C library
+
+세그멘테이션(Segmentation fault의 segmentation 과 다름.)
+
+---
+
+**Case Study : Intel Pentium - 실제 인텔 CPU에서**
+
+**Segmentation Unit 동작 원리**
+
+1. s를 통해 해당하는 세그먼트 테이블 엔트리에 찾아가서, limit 검사 후 base값을 구함.
+2. gdt인지 ldt인지 판단함. 그리고 base + offset를 한 32-bit linear address를 반환
+
+**Paging Unit 동작 원리**
+
+인텔에서는 Outer Page table을 보고 Page Directory 라고 함.
+p1 인덱스를 참조하면 그 안에 DRAM상에 존재하는 Page table의 page의 위치가 나옴.
+그 위치에서 p2 인덱스 값을 참조하면 Frame 번호가 나옴. 해당 메모리를 접근하고 d값을 더해주면 됨.
+
+프로세스1, 프로세스2가 있다고 가정하면 P1을 쓸 때는 CR3레지스터에 P1의 Page Directory 값을 저장하고, P2를 쓰게 되면 Context Switiching 될 때 CR3레지스터가 P2 Page Directory 값으로 바뀌게 된다.
+
+---
+
+**TLB(Translation Look-aside Buffer)**
+
+TLB는 캐쉬로 구성되어 있다.
+
+인텔 프로세서 CPU, MMU가 존재함.
+CPU에서 V.A(p, d)를 MMU에 전달함. MMU는 p를 뽑아서 page-table에 접근함.
+p인덱스에 f값이 저장되어있다고 가정. (f, d)를 합쳐서 메모리를 접근하게 됨.
+
+cpu는 접근속도가 빠르지만 메모리는 접근 속도가 낮다. CPU가 매번 메모리를 접근할 때마다. 매번 메모리에 페이지 테이블을 접근해야 함. 계속 페이지 테이블을 접근하게 되면 
+V.A를 P.A로 변환할 때 성능저하가 생김. 그래서 나온 것이 TLB임.
+
+---
+
+**Virtual Memory Management**
+
+Demand paging 디멘드 페이징
+Swapping 스와핑
+Page replacement 페이지 리플레이스먼트
+Memory mapped file
+
+---
+
+**Demand Paging**
+
+왜 전체 프로그램을 메모리 상에 올려야할까?  
+필요할 때마다 메모리로 로드하게 되면 그만큼 메모리 공간을 최소화시킬 수 있다.
+이것이 Demand Paging 기법이다.
+
+---
+
+Page Fault (아주 중요한 용어)
+
+위 그림에서 3번 페이지에 접근하려고 함.  
+페이지 테이블에서 3번 인덱스에는 I로 체크되어있음(메모리에 없음)  
+이 현상을 보고 Page Fault라고 함.  
+
+페이지를 접근하려는데 메모리에 존재하지 않아서 실패한 현상을 Page Fault라고 함.  
+invalid bit가 I로 된 페이지를 접근할 때 Page Fault가 발생한다.  
+
+Page Fault Exception이 발생하여 다음과 같은 동작이 수행됨.
+
+Page 2번을 접근하려고 그런다. 그런데 valid/invalid bit가 I라서 메모리상에 존재하지 않는다. 이때 CPU는 Page fault exception을 내부적으로 발생시킨다.(이벤트임)
+
+그러면 Page Fault handler(C코드로 되어 있음)가 실행된다.
+
+그러면 Virtual Memory SubSystem에 구축된 어떤 함수를 호출
+
+함수 내에서 무슨 동작을 하냐면  
+1. 페이지 폴트 원인을 검사
+2. 원인에 따라서 (1)디스크 코드/데이터 로드 (2)프로세스 강제종료 위 둘 중 하나 실행
+
+---
+
+**Effective Access Time**
+
+(1) 페이지 폴트 exception을 발생시키고, 페이지폴트 핸들러 발생까지 걸린 시간은
+1msec보다 적다. CPU 명령어만 실행하면 되기 때문에 시간이 엄청 적게 걸린다.
+
+(2) Disk latency 디스크를 읽는 시간은 8msec 가정(로테이셔널 + 시크 + 데이터트랜스펄)
+
+(3) 페이지 테이블 설정하고 정지된 프로세스 재시작하는 시간 : 1msec, CPU 명령어라서
+
+(1) + (2) + (3) 모두 합치면 8msec 정도 걸리는데 Disk 어세스가 대부분을 잡아먹음
+
+페이지 폴트가 많이 발생할수록, 코드와 데이터를 읽어와야 하기 때문에 디스크I/O가 증가함. 성능이 떨어질 수 있다.
+
+Effective memory access time 계산  
+ma = 200 nanosec / page fault rate 1/1000  
+(1-p)*ma + p * page fault time  
+(1-1/1000)*200 + 1/1000*8,000,000  
+= 199.8 + 8000 = 8,1998 = 8,2 used  
+
+---
+
+**Page Replacement 페이지 교체**
+
+그림과 같이 DRAM에는 모든 프레임이 페이지 별로 저장되어있음.
+load M은 DRAM상에 있기 때문에 page fault가 발생하지 않는다.
+Load M을 실행하면  M페이지에 접근한다고 가정, M은 Page 3번에 있음.
+Page Table 3번 인덱스에 DRAM에 존재하지 않음. invalid/valid bit가 I임.
+그렇기 때문에 Page Fault가 발생하고 디스크에서 read해와야하는데 DRAM에 공간이 없음
+이때 어떻게 할 것인가?
+
+**Sol 1) Process Termination**
+
+페이지 폴트를 야기한 프로세스를 종료해 줌. 원시적인 방법
+V.A를 사용하지 않은 Realtime OS 등은 쓰레드와 테스크를 강제적으로 종료시킴.
+
+V.A가 존재하는 OS에선 다음과 같은 방법(Sol2, Sol3)을 사용할 수 있음.
+
+**Sol 2) Process Swapping**
+
+만약 프로세스 1번이 실행되는데, 공간이 없다면 프로세스 2번이 사용 중인 DRAM의 공간을 모두 디스크로 저장시켜버림.
+
+**Sol 3) Page Replacement**
+페이지 교체
+
+현재 DRAM에 빈 프레임이 하나도 없음. 101번 page에서 page fault가 발생
+디스크로 쫓아낼 victim frame을 하나 선택하고 디스크로 back-up시킴.
+이것을 보고 page out이라고 부름. (swap out은 프로세스 모든 프레임을 저장시키는 말)
+
+1) 100번 페이지를 0으로 바꾸고 I 상태로 바꿈
+2) page in을 하여 101번째에 해당하는 frame을 DRAM으로 가져옴.
+3) 101번 페이지에 해당하는 frame 인덱스 f를 page table에서 설정해주고 v로 바꿈
+
+Process Swap보다 효율성이 좋다. 필요한 페이지만 하나씩 가져오면 되기 때문에.
+
+---
+
+**Page Replacement : Modify (Dirty) Bit**
+
+Victim이 Page 2번인데 Read-only라고 가정. 그렇다면 한번도 변경되지 않은 것임.
+그렇기 때문에 Page out을 할 필요가 없음. 디스크에 저장 없이 그냥 날려버림.
+
+Page 3은 그냥 업데이트 된 상태 (Dirty 상태) 근데 Page 3번이 Victim이라고 가정,
+그러면 최신 데이터이기 때문에 무조건 저장해야함. page out이 실행
+이런 동작을 이룰 수 있도록 Modify Bit라는 것을 추가함.
+만약 CPU가 어떤 페이지를 업데이트하면 MMU에서 WRITE 했다고 판단하고 Modify Bit를 1로 셋팅함.
+
+이렇게 Modify Bit가 1인 상태에서 Victim Page로 설정됐다면, page-out 함.
+Modify Bit가 0이면 그냥 날린다. 이 과정으로 디스크 I/O를 최소한 줄이겠다.
+
+---
+
+페이지 교체 알고리즘 4가지
+
+1. FIFO Page Replacement : 메모리 상에서 가장 오랫동안 머물렀던 페이지를 Victim으로 선택해서 교체를 하겠다.
+2. Optimal Page Replacement : 미래에 가장 오랫동안 사용되지 않을 것 같은 페이지를 교체하는 것임.
+3. LRU Page Replacement : 먼 미래를 예측하기 위해서 가까운 과거를 살펴보겠다.
+가까운 과거에 접근된 페이지는 가까운 미래에 접근될 가능성이 높다. 먼 과거에 접근된 것을 페이지 교체한다.
+4. LRU-Approximation Page Replacement : Second-Chance Algorithm이 사용됨.
+
+---
+
+**Thrashing**
+
+짧은 시간 동안 Page Fault가 엄청 많이 일어나는 현상을 쓰레싱이라고 한다.
+
+쓰레싱의 주원인이 무엇이면 메모리 크기가 작다는 것임. 많은 프로세스를 동시에 실행시키면 메모리가 작다는 것. 쓰레싱을 해결하려면 메모리 크기를 증가시키는 방법 뿐이다.
+
+---
+
+**Locality Model(지역성)**
+
+함께 활발히 접근되는 페이지의 집합 (반복적으로 접근되는 Value, 메모리 위치, 파일 블록, 관련된 저장 위치)
+
+Page 11 -> 12 > 10 접근  
+서로 인접한 Page를 접근하는 현상을 보고 Spatial Locality 공간적 지역성.
+
+Temporal Locality : 동일한 변수, 메모리 위치, 파일 블록이 반복적으로 접근될 때 변수 또는 메모리 위치들이 Temporal Locality를 가졌다고 함. int I 등
+
+Spatial Locality : 서로 인접한 것들이 항상 동일하게 함께 접근되는 현상이 있으면
+
+---
+
+**Working-Set Model**
+가장 최근에 데이터 안에 접근된 페이지의 총 개수를 워킹셋이라고 함. 시간에 따라서 바뀜.
+
+델타가 너무 작으면 프로세스가 활발히 사용하는 메모리의 워킹셋을 예측하기가 쉽지 않음.
+
+델타를 너무 크게 해버리면 자주 접근하는 페이지 이외에도 자주 사용하지 않는 페이지도 워킹셋에 포함되어버리면서 불필요하게 메모리를 많이 잡아먹음.
+
+전체 시스템에서의 워킹셋의 합이 D
+D = 워킹셋의 총합.
+
+만약 D > m (DRAM 메모리)이면 Trashing이 발생하게 됨.
+D < m이면 Thrashing 발생안함.
+
+---
+
+**Synchronization 동기화**
+
+쓰레드 또는 프로세스의 실행을 제어하는 동작을 보고 동기화라고 그럼.
+
+프로세스 스케줄링이 쓰레드 스케줄링와 의미가 같다고 보면 됨.
+
+멀티프로그래밍(여러개 프로세스 or 쓰레드 동시에 구동)을 하는 목적은 CPU utilization을 최대화하는 것이 목적. CPU가 놀지 않도록 해주는 것.
+
+---
+
+**Race Condition**
+Counter++ 실제 어셈블리에서 동작
+
+실행 순서에 따라서 특정한 시점에 서로 다른 값이 나왔다.
+
+두 쓰레드가 공유 데이터를 접근하는데 병행적으로 동시에 접근할 때, 쓰레드의 실행 순서에 따라서 공유 데이터의 값이 달라지는 상황을 Race Condition이라고 함.
+
+---
+
+**Critical-Section(임계영역) Problem : 공유 데이터를 접근하는 그 프로그램의 부분 문제**
+
+공유 데이터가 있는 부분이 크리티컬-섹션임
+
+크리티컬 섹션에서 제어를 잘못해주면 Race Condition이 발생할 수도 있음.
+
+Race-Condtion 문제를 Critical-section Problem이라고함.
+
+이것을 해결해줄 수 있는 것이 Synchronization 동기화
+
+---
+
+**A Solution to Critical-Section Problem**
+
+1. Mutual Exclusion 상호 배제
+T0이 E.S로 들어가서 C.S로 들어간다. T1도 E.S로 들어가서 요청을한다.
+한 쓰레드가 C.S를 접근 중이면 다른 쓰레드는 절대 C.S로 못 들어가게 한다.
+T0로가 Exit.S로 빠져나와야 T1에서 접근이 가능하다.
+한 쓰레드만이 크리티컬 섹션을 독점할 수 있게 한다
+.
+좀 더 완벽한 동기화를 위해서 2번이 필요하다.
+
+2. Progress
+T0가 먼저 C.S로 들어감. T1이 들어가려고 E.S에 들어갔는데 T0가 먼저 들어갔기 때문에 WAIT 중임. T0가 빠져나오면 완벽하게 빠져나오면 1초후에 들어간다던지 10초후에 들어간다던지 이러면 안되고 바로 들어가게끔 해줘야함. 이것을 Progress라고 함. T0가 빠져나온 순간에 바로 T1가 들어가도록! 
+
+3. Bounded Waiting
+T0가 C.S로 들어감 T1은 Entry로 들어가서 Waiting, T0가 빠져나왔는데, While문 통해서 T0는 다시 C.S접근 가능. 그런데 T1이 들어가는 것이 아닌 T0가 빠져나왔다가 바로 다시 들어가버리면 T1는 무한대로 대기만 하게 됨. Starvation 발생. 공평하게 T1도 들어갈 수 있게끔 허락해주는 동작을 보고 Bounded Waiting이라고 부름.
+
+---
+
+**Synchronization : Lock**
+
+크리티컬 섹션, Race Condition 문제 동기화를 할 수 있는 가장 기본적인 매커니즘.
+대부분 OS에서 제공하고 있음. Linux, Unix, Windows XP OSes.에서 mutex로 제공
+
+acquire lock과 release lock이 있다. 각각 Entry 섹션, Exit 섹션에 대응됨.
+다른 한 쓰레드가 lock을 잡고 있으면, 다른 쓰레드는 lock을 못잡고 Waiting
+
+Mutex(Locks, Latches) Mutual Exclusion에서 MUT + EX, Locks이라고 많이 이야기함.
+
+locked state : 쓰레드가 mutex를 hold 혹은 own 하고 있는 상태
+unlocked state : 어떤 쓰레드도 mutex를 잡고 있지 않는 것.
+
+---
+
+**Semaphore : OS에서 제공하는 가장 기본적인 메커니즘.**
+
+중요한 변수
+Semaphore count == SeToken count 예제에서는 pCount로 나옴
+
+중요한 함수
+wait() : p함수라고 부름 / siganl() : v함수라고 부름
+p는 세마포어를 만든나라가 네덜란드인데 Dutch(네달란드) Proberen-Test을 따서 P
+v는 Verhogen – increment를 따서 v라고 함.
+Wait 함수는 SemaCount를 1 감소시키고 / signal 함수는 SemeCount를 1 증가시킨다
+
+---
+
+**Deadlock Problem**
+
+데드락이 발생할 수 있는 조건
+
+1. Mutual Exclusion : 어떤 쓰레드가 Critical Section 사용중라면 다른 쓰레드가 들어갈 수 없다. 한 개의 쓰레드는 자원을 하나밖에 잡을 수 없다.
+
+2. Hold and Wait : 한 쓰레드가 자원을 잡고 있으면서, 다른 쓰레드가 잡고 있는 자원을 요청하고 기다린다.
+3. No preemption : 리소스를 잡고 있는 쓰레드만이 그 자원을 해제할 수 있음. 제3의 쓰레드나 OS가 해제할 수 없음.
+   
+4. (아주중요) Circular wait : p0, p1, ...p0이 있는데 p0은 자원을 갖고 있음, 그러면서 p1의 자원을 잡으려고 waiting 중이다. p1은 p2가 가지고 있는 자원을 잡으려고 waiting 중이다. 이런 식으로 쭉 pn-1도 p0가 선점 중인 자원을 가지려고 하고 있음.
+
+---
